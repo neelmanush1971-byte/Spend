@@ -105,12 +105,12 @@ svg text{fill:var(--mut);font-size:10px}.be{fill:var(--blue)}.bi{fill:var(--grn)
 (function(){
 'use strict';
 var KEY='spend.v2';
-var EC=['Groceries','Eating out','Transport','Rent','Bills','Mobile & net','Education','Health','Shopping','Fun','Family','Pujo & donation','Other'];
+var EC=['Groceries','Eating out','Transport','Rent','Bills','Mobile & net','Education','Health','Shopping','Fun','Family','Zakat & donation','Other'];
 var IC=['Salary','Business','Gift','Other'];
 var PAY=['Cash','bKash','Nagad','Rocket','Bank','Card'];
 var IK=['DPS','FDR','Sanchayapatra','Stocks (DSE)','Gold','Crypto','Business','Other'];
-var EM={'Groceries':'🛒','Eating out':'🍽️','Transport':'🚌','Rent':'🏠','Bills':'💡','Mobile & net':'📶','Education':'🎓','Health':'💊','Shopping':'🛍️','Fun':'🎬','Family':'👪','Pujo & donation':'🤲','Other':'📦'};
-var S={tx:[],loans:[],inv:[],cur:'BDT',rate:120,bn:false,bud:{},wants:['Eating out','Shopping','Fun']};
+var EM={'Groceries':'🛒','Eating out':'🍽️','Transport':'🚌','Rent':'🏠','Bills':'💡','Mobile & net':'📶','Education':'🎓','Health':'💊','Shopping':'🛍️','Fun':'🎬','Family':'👪','Zakat & donation':'🤲','Other':'📦'};
+var S={tx:[],loans:[],inv:[],cur:'BDT',rate:123,bn:false,bud:{},wants:['Eating out','Shopping','Fun']};
 var tab='home',lt='loans',F={},SF=function(){},mon,wk;
 var $=function(i){return document.getElementById(i)};
 var p2=function(n){return n<10?'0'+n:''+n};
@@ -122,9 +122,11 @@ var esc=function(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){re
 var BD='০১২৩৪৫৬৭৮৯';
 function dg(s){return S.bn?String(s).replace(/[0-9]/g,function(d){return BD[d]}):s}
 function num(s){var x=parseFloat(String(s).replace(/[০-৯]/g,function(d){return BD.indexOf(d)}).replace(/,/g,''));return isFinite(x)?x:NaN}
-function fm(n,c){c=c||S.cur;var u=c==='USD';return dg((u?'$':'৳')+Math.abs(n).toLocaleString(u?'en-US':'en-IN',{minimumFractionDigits:u?2:0,maximumFractionDigits:u?2:0}))}
-var B=function(x){return x.cur==='USD'?x.amt*S.rate:x.amt};
-var cv=function(b){return S.cur==='USD'?b/S.rate:b};
+var SYM={BDT:'৳',USD:'$',INR:'₹'};
+function fm(n,c){c=c||S.cur;var u=c==='USD';return dg((SYM[c]||'৳')+Math.abs(n).toLocaleString(u?'en-US':'en-IN',{minimumFractionDigits:u?2:0,maximumFractionDigits:u?2:0}))}
+var R=function(c){return c==='BDT'||!S.fx?1:(S.fx[c]||1)};
+var B=function(x){return x.amt*R(x.cur)};
+var cv=function(b){return b/R(S.cur)};
 var fb=function(b){return fm(cv(b))};
 var sum=function(a){return a.reduce(function(s,t){return s+B(t)},0)};
 var fd=function(s){return dg(pd(s).toLocaleDateString('en-GB',{day:'numeric',month:'short'}))};
@@ -133,10 +135,11 @@ var toastT;function toast(m){var t=$('toast');t.textContent=m;t.classList.add('s
 
 function load(){try{var r=localStorage.getItem(KEY);if(r){Object.assign(S,JSON.parse(r));return}
 r=localStorage.getItem('spend.v1');if(r){var o=JSON.parse(r);S.tx=(o.expenses||[]).map(function(e){return Object.assign({type:'exp',pay:'Cash'},e)});S.cur=o.cur==='USD'?'USD':'BDT';S.rate=+o.rate>0?+o.rate:120}}catch(e){}}
+function fxFix(){S.fx=Object.assign({USD:S.rate>0?S.rate:123,INR:1.31},S.fx||{})}
 function save(){try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){toast('Could not save. Storage may be full.')}}
 
 /* helpers for markup */
-function seg(g,o,v,cls,act){return '<div class="seg '+(cls||'')+'">'+o.map(function(x){return '<button class="'+(x[0]===v?'on':'')+'" data-a="'+(act||'seg')+'" data-g="'+g+'" data-v="'+x[0]+'">'+x[1]+'</button>'}).join('')+'</div>'}
+function seg(g,o,v,cls,act){if(g==='cur'&&o.length<3)o=o.concat([['INR',o[0][1].length>2?'₹ INR':'₹']]);return '<div class="seg '+(cls||'')+'">'+o.map(function(x){return '<button class="'+(x[0]===v?'on':'')+'" data-a="'+(act||'seg')+'" data-g="'+g+'" data-v="'+x[0]+'">'+x[1]+'</button>'}).join('')+'</div>'}
 function chip(g,v,cur,l){return '<button class="chip '+(v===cur?'on':'')+'" data-a="chip" data-g="'+g+'" data-v="'+esc(v)+'">'+esc(l||v)+'</button>'}
 function sheet(h){$('sheet').innerHTML='<div class="grab"></div>'+h;$('scrim').classList.add('open');$('sheet').classList.add('open')}
 function closeS(){$('scrim').classList.remove('open');$('sheet').classList.remove('open')}
@@ -228,7 +231,7 @@ function week(){
 
 /* money */
 var rem=function(l){return l.amt-(l.pays||[]).reduce(function(s,p){return s+p.amt},0)};
-var xb=function(o,v){return o.cur==='USD'?v*S.rate:v};
+var xb=function(o,v){return v*R(o.cur)};
 function money(){
   var h='<div class="top"><h1>Money</h1><button class="lnk" data-a="'+(lt==='loans'?'addloan':'addinv')+'">Add</button></div>';
   h+=seg('lt',[['loans','Loans'],['inv','Investments']],lt,'','lt');
@@ -248,7 +251,7 @@ function money(){
 
 /* settings */
 function set(){
-  return '<h1>Settings</h1><div class="g"><div class="r"><span>1 USD in ৳</span><input class="in" id="s_rate" inputmode="decimal" value="'+S.rate+'" data-ch="rate" aria-label="Exchange rate"></div><div class="r"><span style="flex:1">Bangla digits (০১২৩)</span><input type="checkbox" class="sw" data-ch="bn" '+(S.bn?'checked':'')+' aria-label="Bangla digits"></div></div>'+
+  return '<h1>Settings</h1><div class="g"><div class="r"><span>1 USD in ৳</span><input class="in" inputmode="decimal" value="'+S.fx.USD+'" data-ch="rate" data-v="USD" aria-label="USD rate in taka"></div><div class="r"><span>1 INR in ৳</span><input class="in" inputmode="decimal" value="'+S.fx.INR+'" data-ch="rate" data-v="INR" aria-label="INR rate in taka"></div><button class="r" data-a="fx" style="color:var(--blue)">Update live rates</button></div><p class="note">'+(S.fxAt?'Live rates last updated '+esc(S.fxAt)+'.':'Rates are approximate until you update them.')+' You can also type a rate by hand.</p><div class="g"><div class="r"><span style="flex:1">Bangla digits (০১২৩)</span><input type="checkbox" class="sw" data-ch="bn" '+(S.bn?'checked':'')+' aria-label="Bangla digits"></div></div>'+
   '<div class="h">Non-essential categories and monthly budgets (৳)</div><div class="g">'+EC.map(function(c){return '<div class="r"><span style="flex:1;min-width:0">'+EM[c]+' '+esc(c)+'</span><input type="checkbox" class="sw" data-ch="want" data-v="'+esc(c)+'" '+(S.wants.indexOf(c)>-1?'checked':'')+' aria-label="'+esc(c)+' non-essential"><input class="in bud" inputmode="decimal" placeholder="Budget" data-ch="bud" data-v="'+esc(c)+'" value="'+(S.bud[c]||'')+'" aria-label="'+esc(c)+' budget"></div>'}).join('')+'</div>'+
   '<p class="note">Switch on a category to mark it non-essential. Alerts warn you when these grow fast. A budget in ৳ triggers warnings at 80% and 100%.</p>'+
   '<div class="h">Your data</div><div class="g"><button class="r" data-a="csv">Export CSV</button><button class="r" data-a="bak">Back up</button><button class="r" data-a="res">Restore backup</button></div><input type="file" id="imf" accept=".json,application/json" hidden>'+
@@ -328,7 +331,16 @@ function csv(){
   S.tx.slice().sort(function(a,b){return a.date<b.date?-1:1}).forEach(function(t){R.push([t.date,t.type,t.amt,t.cur,t.cat,t.pay||'',t.note,B(t).toFixed(2)])});
   out('spend-'+tdy()+'.csv',R.map(function(r){return r.map(function(v){v=String(v);return /[",\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v}).join(',')}).join('\n'),'text/csv')}
 function restore(f){var r=new FileReader();r.onload=function(){try{var o=JSON.parse(r.result);if(!o||!Array.isArray(o.tx))throw 0;
-  if(!confirm('Replace everything on this phone with the backup ('+o.tx.length+' transactions)?'))return;Object.assign(S,o);save();render();toast('Backup restored')}catch(e){toast('That is not a valid backup file.')}};r.readAsText(f)}
+  if(!confirm('Replace everything on this phone with the backup ('+o.tx.length+' transactions)?'))return;Object.assign(S,o);fxFix();save();render();toast('Backup restored')}catch(e){toast('That is not a valid backup file.')}};r.readAsText(f)}
+
+function liveFx(q){
+  if(!q)toast('Fetching rates…');
+  fetch('https://open.er-api.com/v6/latest/USD').then(function(r){return r.json()}).then(function(d){
+    var r=d&&d.rates;if(!r||!(r.BDT>0)||!(r.INR>0))throw 0;
+    S.fx.USD=Math.round(r.BDT*100)/100;S.fx.INR=Math.round(r.BDT/r.INR*10000)/10000;
+    S.fxAt=new Date().toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'});S.fxDay=tdy();
+    save();render();if(!q)toast('Rates updated')
+  }).catch(function(){if(!q)toast('Could not fetch rates. Check your internet or type them in.')})}
 
 /* events */
 document.addEventListener('click',function(ev){
@@ -356,6 +368,7 @@ document.addEventListener('click',function(ev){
     case 'delinv':del('inv');break;
     case 'addpay':rd();var p=num(F.pay);if(!(p>0)){toast('Enter a payment amount.');break}
       F.pays=(F.pays||[]).concat([{amt:p,date:tdy()}]);F.pay='';if(saveLoan(true)){loanS();render();toast('Payment recorded')}break;
+    case 'fx':liveFx();break;
     case 'csv':csv();break;
     case 'bak':out('spend-backup-'+tdy()+'.json',JSON.stringify(S),'application/json');break;
     case 'res':$('imf').click();break;
@@ -365,14 +378,15 @@ document.addEventListener('change',function(ev){
   var t=ev.target,c=t.dataset.ch;
   if(t.id==='imf'){if(t.files[0])restore(t.files[0]);t.value='';return}
   if(!c)return;
-  if(c==='rate'){var n=num(t.value);if(n>0){S.rate=n;save();toast('Rate updated')}else{t.value=S.rate;toast('Enter a rate above zero.')}}
+  if(c==='rate'){var n=num(t.value),k=t.dataset.v;if(n>0){S.fx[k]=n;save();toast('Rate updated')}else{t.value=S.fx[k];toast('Enter a rate above zero.')}}
   else if(c==='bn'){S.bn=t.checked;save();render()}
   else if(c==='want'){var v=t.dataset.v,i=S.wants.indexOf(v);if(t.checked&&i<0)S.wants.push(v);if(!t.checked&&i>-1)S.wants.splice(i,1);save()}
   else if(c==='bud'){var b=num(t.value);if(b>0)S.bud[t.dataset.v]=b;else delete S.bud[t.dataset.v];save()}});
 
 load();
-var n0=new Date();mon=new Date(n0.getFullYear(),n0.getMonth(),1);wk=ws(n0);
+fxFix();var n0=new Date();mon=new Date(n0.getFullYear(),n0.getMonth(),1);wk=ws(n0);
 render();
+if(S.fxDay!==tdy())liveFx(true);
 if('serviceWorker' in navigator){try{navigator.serviceWorker.register('sw.js').catch(function(){})}catch(e){}}
 })();
 </script>
